@@ -1,0 +1,118 @@
+%        File: hw2.tex
+%     Created: Tue Feb 10 04:00 PM 2015 P
+% Last Change: Tue Feb 10 04:00 PM 2015 P
+%
+\documentclass[a4paper]{article}
+\author{Jeremy Wong}
+\title{CS-172a, Homework Assignment \#2}
+\begin{document}
+\maketitle
+\section{Specification}
+This is a bash script for grading a directory of multiple-choice homework assignments. The directory should contain a ``key'' file that lists the solutions, line-by-line.
+
+The working directory should contain the script and the directory of assignments to grade. The directory of assignments should contain a file called ``key'' and any number of files containing submitted homework assignments.
+
+When this script is run, it generates a subdirectory ``graded'' in the directory of assignments to grade. This contains graded versions of the assignment.
+\section{Implementation}
+\begin{verbatim}
+#!/bin/bash
+p=$PWD
+dir=$1
+echo "dir" is $dir
+
+acount=0
+for i in `cat $dir/key`
+do
+   acount=$((acount+1))
+   A[$acount]=$i
+   echo A'['$acount']' is $i
+done
+
+for i in `ls $dir`
+do
+   if [ "$i" != "key" ]
+   then
+      bcount=0
+      gradedOut=$dir/graded/$i-Graded
+      mkdir $dir/graded &>/dev/null
+      touch $gradedOut 
+      #echo $i
+      #cat $dir/$i
+      score=0
+      for k in `cat $dir/$i`
+      do
+	 bcount=$((bcount+1))
+	 if [ "$k" == ${A[$bcount]} ]
+	 then 
+	    echo $k CORRECT  >>$gradedOut
+	    score=$((score+1))
+	 else
+	    echo $k WRONG >>$gradedOut
+	 fi
+      done
+      echo Final grade: $score/$acount >>$gradedOut
+   fi
+done
+\end{verbatim}
+
+\section{Why this implementation is better}
+\begin{enumerate}
+   \item It's terser. Some unecessary lines were cut, like ``pushd students\ldots''
+   \item It's unclear how the script was meant to be used. 
+   \item Doesn't output a results.csv. This might be seen as not-a-feature, or worse than the original implementation, but this makes it simpler, and more conformant with the Unix philosophy. This script \textit{just} grades the assignments. Another script could be written to handle the generation of *.csv files. This would make the set of programs follow the rule of composition.
+
+\end{enumerate}
+
+\begin{verbatim}
+#!/bin/bash
+p=$PWD
+>$p/results.hw$1 #output results to a new file in the current working dir
+
+numq=`wc -l hw$1/answers |cut -f1 -d" "` #store number of questions
+
+#store each line in array
+acount=0
+for i in `cat hw$1/answers` 
+do
+acount=$((acount+1))
+A[$acount]=$i
+# echo A'[' $acount ']' is $i
+done
+
+for i in `ls students`
+do
+	bcount=0
+	pushd students/$i &>/dev/null
+	#pushing a non-directory onto the directory stack seems bad
+	echo now in $PWD &>/dev/null
+	if [ -f hw$1 ] 
+		#check for existence of file
+		#check to see if file is regular
+	then
+		WRONG=""
+		correct=0
+		for j in `cat hw$1` #for each file in directory hw$1
+		#this line doesnt execute properly
+		do
+			bcount=$((bcount+1))
+			if [ "$j" != ${A[$bcount]} ]
+			then
+				WRONG=`echo $WRONG $j " "`
+			else
+				correct=$((correct+1))
+			fi
+		done
+	s=$(echo "scale=2; $correct / $numq" |bc )
+	echo $i SCORE $s wrong were $WRONG >>$p/results.hw$1
+	else s=0
+	fi
+	printf "%s,%4.2f\n" $i $s >>$p/scores_hw$1.csv
+	
+	popd &>/dev/null
+done
+\end{verbatim}
+
+
+\end{document}
+
+
